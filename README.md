@@ -1,11 +1,22 @@
-<p align="center">
-  <img src="docs/root/_static/logo.png?raw=true">
-</p>
+const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } = require("@whiskeysockets/baileys");
 
-# omnibot
+async function startBot() {
+    const { state, saveCreds } = await useMultiFileAuthState("auth_info");
+    const { version } = await fetchLatestBaileysVersion();
+    const sock = makeWASocket({ version, auth: state });
 
-omnibot is a Slack proxy that can route Slack events to various ``handlers``. ``handlers`` match different types of Slack events and send them to callbacks, which are pluggable python modules. For the most part, all you need to do is to configure omnibot to route messages via your handlers, and return a list of actions for omnibot to take on a bot's behalf.
+    sock.ev.on("creds.update", saveCreds);
 
-## Docs
+    sock.ev.on("messages.upsert", async ({ messages }) => {
+        const msg = messages[0];
+        if (!msg.message) return;
+        const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
+        if (text && text.toLowerCase() === "hi") {
+            await sock.sendMessage(msg.key.remoteJid, { text: "Hello! I am your WhatsApp bot." });
+        }
+    });
 
-For more detailed information, please see [the docs](https://lyft.github.io/omnibot).
+    console.log("Bot started. Scan the QR code to connect.");
+}
+
+startBot();
